@@ -3,7 +3,10 @@
 
 """SuperBench Runner."""
 
+import json
+import pprint
 import random
+import statistics
 from pathlib import Path
 
 from joblib import Parallel, delayed
@@ -174,6 +177,49 @@ class SuperBenchRunner():
             )
         )
 
+    def __create_results_summary(self, print=True):
+        for node_path in (self._output_path / 'nodes').glob('*'):
+            if not node_path.is_dir():
+                continue
+            results_summary = {}
+            for benchmark_path in (node_path / 'benchmarks').glob('*'):
+                if not benchmark_path.is_dir() or '.' in benchmark_path.name:
+                    continue
+                summary = {}
+                for rank_path in benchmark_path.glob('rank*'):
+                    if not rank_path.is_dir() or '.' in rank_path.name:
+                        continue
+                    results_file = rank_path / 'results.json'
+                    if not results_file.is_file():
+                        continue
+                    with results_file.open() as f:
+                        results = json.load(f)
+                        for val in [results] if 'name' in results else results.values():
+                            if 'name' not in val:
+                                continue
+                            if val['name'] not in summary:
+                                summary[val['name']] = val['result']
+                            else:
+                                for metric in val['result']:
+                                    if metric not in summary[val['name']]:
+                                        summary[val['name']][metric] = val['result'][metric]
+                                    else:
+                                        summary[val['name']][metric] += val['result'][metric]
+                for name in summary:
+                    for metric in summary[name]:
+                        if metric.startswith('steptime'):
+                            summary[name][metric] = max(summary[name][metric])
+                        elif metric.startswith('throughput'):
+                            summary[name][metric] = min(summary[name][metric])
+                        else:
+                            summary[name][metric] = statistics.mean(summary[name][metric])
+                results_summary[benchmark_path.name] = summary
+            with (node_path / 'results-summary.json').open(mode='w') as f:
+                json.dump(results_summary, f, indent=2)
+            if print:
+                logger.info('*' * 50)
+                logger.info('SuperBench results on node %s:\n%s', node_path.name, pprint.pformat(results_summary))
+
     def _run_proc(self, benchmark_name, mode, vars):
         """Run the process.
 
@@ -215,3 +261,4 @@ class SuperBenchRunner():
                 elif mode.name == 'torch.distributed':
                     self._run_proc(benchmark_name, mode, {'proc_rank': 0})
             self.fetch_results()
+        self.__create_results_summary()
