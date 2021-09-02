@@ -3,7 +3,7 @@
 # Server:
 #   - Product: mi200ev2-linux
 
-version: v0.2
+version: v0.3
 superbench:
   enable: null
   var:
@@ -35,6 +35,13 @@ superbench:
         - train
       pin_memory: yes
   benchmarks:
+    ib-loopback:
+      enable: true
+      modes:
+        - name: local
+          proc_num: 8
+          prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3,4,5,6,7
+          parallel: no
     disk-benchmark:
       enable: true
       modes:
