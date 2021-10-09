@@ -1,4 +1,8 @@
 # SuperBench Config
+#
+# Server:
+#   - Product: HPE Apollo 6500
+
 version: v0.2
 superbench:
   enable: null
@@ -8,7 +12,7 @@ superbench:
       modes:
         - name: local
           proc_num: 8
-          prefix: CUDA_VISIBLE_DEVICES={proc_rank}
+          prefix: HIP_VISIBLE_DEVICES={proc_rank}
           parallel: yes
     default_pytorch_mode: &default_pytorch_mode
       enable: true
@@ -33,8 +37,35 @@ superbench:
   benchmarks:
     kernel-launch:
       <<: *default_local_mode
+    rccl-bw:
+      enable: true
+      modes:
+        - name: mpi
+          proc_num: 8
+          env:  
+            NCCL_SOCKET_IFNAME: ens17f0 
+            NCCL_IB_GDR_LEVEL: 1
+      parameters:
+        maxbytes: 128M
+        minbytes: 32M
+        iters: 50
+        ngpus: 1
+        operation: allreduce
+    mem-bw:
+      <<: *default_local_mode
     gemm-flops:
       <<: *default_local_mode
+      parameters:
+        m: 7680 
+        n: 8192 
+        k: 8192
+    ib-loopback:
+      enable: true
+      modes:
+        - name: local
+          proc_num: 4
+          prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3
+          parallel: no
     disk-benchmark:
       enable: false
       modes:
@@ -54,18 +85,6 @@ superbench:
         mem_type:
           - dtoh
           - htod
-    cudnn-function:
-      <<: *default_local_mode
-    cublas-function:
-      <<: *default_local_mode
-    matmul:
-      <<: *default_local_mode
-      frameworks:
-        - pytorch
-    sharding-matmul:
-      <<: *default_pytorch_mode
-    computation-communication-overlap:
-      <<: *default_pytorch_mode
     gpt_models:
       <<: *default_pytorch_mode
       models:
@@ -101,8 +120,7 @@ superbench:
         - resnet152
       parameters:
         <<: *common_model_config
-        batch_size: 192
-        num_steps: 512
+        pin_memory: no
     densenet_models:
       <<: *default_pytorch_mode
       models:
