@@ -1,7 +1,7 @@
 # SuperBench Config
 #
 # Server:
-#   - Product: mi200ev2-linux
+#   - Product: Hayabusa
 
 version: v0.3
 superbench:
