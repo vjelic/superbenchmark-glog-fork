@@ -4,10 +4,12 @@
 """Module of the Pytorch model-benchmark base class."""
 
 import os
+from datetime import timedelta
 
 import torch
 import transformers
 from torch.utils.data import DataLoader
+from torch.distributed import TCPStore, PrefixStore
 
 from superbench.common.utils import logger
 from superbench.benchmarks import Framework, ReturnCode
@@ -57,7 +59,20 @@ class PytorchBase(ModelBenchmark):
                     )
                     return False
 
-                torch.distributed.init_process_group(backend=self._args.distributed_backend.value)
+                port = int(os.environ['MASTER_PORT']) + 1
+                addr = os.environ['MASTER_ADDR']
+                rank = int(os.environ['LOCAL_RANK'])
+                world_size = int(os.environ['WORLD_SIZE'])
+                logger.info('ip:{},port:{},rank:{},world:{}'.format(addr, str(port), str(rank), str(world_size)))
+                store = PrefixStore(self._name, TCPStore(addr, port, world_size, rank == 0, timedelta(seconds=300)))
+                torch.distributed.init_process_group(
+                    backend=self._args.distributed_backend.value,
+                    timeout=timedelta(seconds=300),
+                    rank=rank,
+                    world_size=world_size,
+                    store=store
+                )
+
                 self._world_size = int(os.environ['WORLD_SIZE'])
                 self._local_rank = int(os.environ['LOCAL_RANK'])
             else:

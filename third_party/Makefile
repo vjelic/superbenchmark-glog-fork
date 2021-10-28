@@ -45,7 +45,7 @@ cuda_bandwidthTest: sb_micro_path
 # The version we use is commit 44df0bf from master branch, since it didn't update release tag for long time.
 cuda_nccl_tests: sb_micro_path
 ifneq (,$(wildcard nccl-tests/Makefile))
-	cd ./nccl-tests && make MPI=1 MPI_HOME=$(MPI_HOME) -j
+	cd ./nccl-tests && make MPI=1 MPI_HOME=$(MPI_HOME) HIPCUFLAGS="--amdgpu-target=gfx90a" -j
 	cp -v ./nccl-tests/build/* $(SB_MICRO_PATH)/bin/
 endif
 
