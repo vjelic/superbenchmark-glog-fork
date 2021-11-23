@@ -11,14 +11,14 @@ superbench:
       enable: true
       modes:
         - name: local
-          proc_num: 8
-          prefix: CUDA_VISIBLE_DEVICES={proc_rank}
+          proc_num: 16
+          prefix: HIP_VISIBLE_DEVICES={proc_rank}
           parallel: yes
     default_pytorch_mode: &default_pytorch_mode
       enable: true
       modes:
         - name: torch.distributed
-          proc_num: 8
+          proc_num: 16
           node_num: 1
       frameworks:
         - pytorch
@@ -35,6 +35,31 @@ superbench:
         - train
       pin_memory: yes
   benchmarks:
+    kernel-launch:
+      <<: *default_local_mode
+    rccl-bw:
+      enable: true
+      modes:
+        - name: local
+          proc_num: 1
+          parallel: no
+      parameters:
+        maxbytes: 16G
+        ngpus: 16
+        operation: allreduce
+    mem-bw:
+      enable: true
+      modes:
+        - name: local
+          proc_num: 16
+          prefix: HIP_VISIBLE_DEVICES={proc_rank}
+          parallel: no
+    gemm-flops:
+      enable: false
+      parameters:
+        m: 7680
+        n: 8192
+        k: 8192
     ib-loopback:
       enable: true
       modes:
@@ -43,28 +68,75 @@ superbench:
           prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3,4,5,6,7
           parallel: no
     disk-benchmark:
+      enable: false
+      modes:
+        - name: local
+          proc_num: 1
+          parallel: no
+      parameters:
+        block_devices: []
+    gpu-sm-copy-bw:
       enable: true
       modes:
         - name: local
-          proc_num: 4
-          prefix: numactl -N $(({proc_rank}%4)) -m $(({proc_rank}%4))
+          proc_num: 64
+          prefix: HIP_VISIBLE_DEVICES=$(({proc_rank}%16)) numactl -N $(({proc_rank}/16)) -m $(({proc_rank}/16))
           parallel: no
       parameters:
-        block_devices:
-          - /dev/nvme0n1
-          - /dev/nvme1n1
-          - /dev/nvme2n1
-          - /dev/nvme3n1
-          - /dev/nvme4n1
-          - /dev/nvme5n1
-          - /dev/nvme6n1
-          - /dev/nvme7n1
-          - /dev/nvme8n1
-          - /dev/nvme9n1
-          - /dev/nvme10n1
-          - /dev/nvme11n1
-          - /dev/nvme12n1
-          - /dev/nvme13n1
-          - /dev/nvme14n1
-          - /dev/nvme15n1
-          - /dev/nvme16n1
+        mem_type:
+          - dtoh
+          - htod
+    gpt_models:
+      <<: *default_pytorch_mode
+      models:
+        - gpt2-large
+      parameters:
+        <<: *common_model_config
+        batch_size: 8
+        seq_len: 224
+    bert_models:
+      <<: *default_pytorch_mode
+      models:
+        - bert-base
+        - bert-large
+      parameters:
+        <<: *common_model_config
+        seq_len: 224
+    lstm_models:
+      <<: *default_pytorch_mode
+      models:
+        - lstm
+      parameters:
+        <<: *common_model_config
+        batch_size: 224
+        input_size: 224
+        hidden_size: 1000
+        seq_len: 32
+        pin_memory: no
+    resnet_models:
+      <<: *default_pytorch_mode
+      models:
+        - resnet50
+        - resnet101
+        - resnet152
+      parameters:
+        <<: *common_model_config
+        pin_memory: no
+    densenet_models:
+      <<: *default_pytorch_mode
+      models:
+        - densenet169
+        - densenet201
+      parameters:
+        <<: *common_model_config
+        pin_memory: no
+    vgg_models:
+      <<: *default_pytorch_mode
+      models:
+        - vgg11
+        - vgg13
+        - vgg16
+        - vgg19
+      parameters:
+        <<: *common_model_config
+        pin_memory: no
