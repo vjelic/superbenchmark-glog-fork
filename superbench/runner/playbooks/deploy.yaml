@@ -88,10 +88,10 @@
       become: yes
       when: docker_registry is defined
       ignore_errors: true
-    # - name: Pulling Container Image
-    #   shell: |
-    #     docker pull {{ docker_image }}
-    #   become: yes
+    - name: Pulling Container Image
+      shell: |
+        docker pull {{ docker_image }}
+      become: yes
     - name: Starting Container
       shell: |
         docker rm --force {{ container }} ||: && \
