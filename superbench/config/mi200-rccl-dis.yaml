@@ -41,9 +41,9 @@ superbench:
       enable: true
       modes:
         - name: mpi
-          proc_num: 16
+          impl: mpich
+          proc_num: 1
           env:
-            NCCL_SOCKET_IFNAME: ens17f0
             NCCL_IB_GDR_LEVEL: 5
             HSA_ENABLE_SDMA: 0
             LD_LIBRARY_PATH: /root/rccl-rdma-sharp-plugins/src/.libs 
@@ -53,7 +53,7 @@ superbench:
       parameters:
         maxbytes: 1G
         operation: allreduce
-        ngpus: 1
+        ngpus: 16
     mem-bw:
       enable: true
       modes:

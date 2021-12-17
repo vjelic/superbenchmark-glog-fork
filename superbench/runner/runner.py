@@ -77,22 +77,24 @@ class SuperBenchRunner():
                     if not mode.proc_num:
                         self._sb_benchmarks[name].modes[idx].proc_num = 8
                 elif mode.name == 'mpi':
-                    if not mode.mca:
-                        self._sb_benchmarks[name].modes[idx].mca = {
-                            'pml': 'ob1',
-                            'btl': '^openib',
-                            'btl_tcp_if_exclude': 'lo,docker0',
-                            'coll_hcoll_enable': 0,
-                        }
-                    if not mode.env:
-                        self._sb_benchmarks[name].modes[idx].env = {}
-                    for key in ['PATH', 'LD_LIBRARY_PATH', 'SB_MICRO_PATH']:
-                        self._sb_benchmarks[name].modes[idx].env.setdefault(key, None)
-                elif mode.name == 'mpich':
-                    if not mode.env:
-                        self._sb_benchmarks[name].modes[idx].env = {}
-                    for key in ['PATH', 'LD_LIBRARY_PATH', 'SB_MICRO_PATH']:
-                        self._sb_benchmarks[name].modes[idx].env.setdefault(key, None)
+                    if not mode.impl or mode.impl == 'openmpi':
+                        if not mode.mca:
+                            self._sb_benchmarks[name].modes[idx].mca = {
+                                'pml': 'ob1',
+                                'btl': '^openib',
+                                'btl_tcp_if_exclude': 'lo,docker0',
+                                'coll_hcoll_enable': 0,
+                            }
+                        if not mode.env:
+                            self._sb_benchmarks[name].modes[idx].env = {}
+                        for key in ['PATH', 'LD_LIBRARY_PATH', 'SB_MICRO_PATH']:
+                            self._sb_benchmarks[name].modes[idx].env.setdefault(key, None)
+                    elif mode.impl == 'mpich':
+                        if not mode.env:
+                            self._sb_benchmarks[name].modes[idx].env = {}
+                        self._sb_benchmarks[name].modes[idx].env.setdefault('SB_MICRO_PATH', '/opt/superbench')
+                    else:
+                        logger.warning('Unknown implementation %s for mpi mode.', mode.impl)
 
     def __get_enabled_benchmarks(self):
         """Get enabled benchmarks list.
@@ -149,33 +151,35 @@ class SuperBenchRunner():
                             ).format(name=benchmark_name, model=mode.model_name)
             )
         elif mode.name == 'mpi':
-            mode_command = (
-                'mpirun'    # use default OpenMPI in image
-                '-tag-output '    # tag mpi output with [jobid,rank]<stdout/stderr> prefix
-                '-allow-run-as-root '    # allow mpirun to run when executed by root user
-                '-hostfile hostfile '    # use prepared hostfile
-                '-map-by ppr:{proc_num}:node '    # launch {proc_num} processes on each node
-                '-bind-to numa '    # bind processes to numa
-                '{mca_list} {env_list} {command}'
-            ).format(
-                proc_num=mode.proc_num,
-                mca_list=' '.join(f'-mca {k} {v}' for k, v in mode.mca.items()),
-                env_list=' '.join(f'-x {k}={v}' if v else f'-x {k}' for k, v in mode.env.items()),
-                command=exec_command,
-            )
-        elif mode.name == 'mpich':
-            mode_command = (
-                'mpirun.mpich '    # use default OpenMPI in image
-                '-tag-output '    # tag mpi output with [jobid,rank]<stdout/stderr> prefix
-                '-f hostfile '    # use prepared hostfile
-                '-map-by ppr:{proc_num}:node '    # launch {proc_num} processes on each node
-                '-bind-to numa '    # bind processes to numa
-                '{env_list} {command}'
-            ).format(
-                proc_num=mode.proc_num,
-                env_list=' '.join(f'-env {k}={v}' if v else f'-env {k}' for k, v in mode.env.items()),
-                command=exec_command,
-            )
+            if not mode.impl or mode.impl == 'openmpi':
+                mode_command = (
+                    'mpirun'    # use default OpenMPI in image
+                    '-tag-output '    # tag mpi output with [jobid,rank]<stdout/stderr> prefix
+                    '-allow-run-as-root '    # allow mpirun to run when executed by root user
+                    '-hostfile hostfile '    # use prepared hostfile
+                    '-map-by ppr:{proc_num}:node '    # launch {proc_num} processes on each node
+                    '-bind-to numa '    # bind processes to numa
+                    '{mca_list} {env_list} {command}'
+                ).format(
+                    proc_num=mode.proc_num,
+                    mca_list=' '.join(f'-mca {k} {v}' for k, v in mode.mca.items()),
+                    env_list=' '.join(f'-x {k}={v}' if v else f'-x {k}' for k, v in mode.env.items()),
+                    command=exec_command,
+                )
+            elif mode.impl == 'mpich':
+                mode_command = (
+                    '/opt/mpich/bin/mpirun -pmi-port '    # use default OpenMPI in image
+                    '-ppn {proc_num} '    # launch {proc_num} processes on each node
+                    '-f hostfile '    # use prepared hostfile
+                    '-bind-to numa '    # bind processes to numa
+                    '{env_list} {command}'
+                ).format(
+                    proc_num=mode.proc_num,
+                    env_list=' '.join(f'-env {k}={v}' for k, v in mode.env.items()),
+                    command=exec_command,
+                )
+            else:
+                logger.warning('Unknown implementation %s for mpi mode.', mode.impl)
         else:
             logger.warning('Unknown mode %s.', mode.name)
         return mode_command.strip()
@@ -387,7 +391,7 @@ class SuperBenchRunner():
                 "'set -o allexport && source sb.env && set +o allexport && {command}'"
             ).format(command=self.__get_mode_command(benchmark_name, mode))
         )
-        if mode.name == 'mpi' or mode.name == 'mpich':
+        if mode.name == 'mpi':
             ansible_runner_config = self._ansible_client.update_mpi_config(ansible_runner_config)
         rc = self._ansible_client.run(ansible_runner_config, sudo=True)
         return rc
@@ -409,10 +413,11 @@ class SuperBenchRunner():
                 elif mode.name == 'torch.distributed':
                     for m in self._sb_benchmarks[benchmark_name].models:
                         self._run_proc(benchmark_name, mode, {'proc_rank': 0, 'model_name': m})
-                elif mode.name == 'mpi' or mode.name == 'mpich':
+                elif mode.name == 'mpi':
                     self._run_proc(benchmark_name, mode, {'proc_rank': 0})
                 else:
                     logger.warning('Unknown mode %s.', mode.name)
             self.fetch_results()
 
         self.__create_results_summary()
+
