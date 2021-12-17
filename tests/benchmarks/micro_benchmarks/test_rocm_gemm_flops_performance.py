@@ -3,27 +3,20 @@
 
 """Tests for gemm-flops benchmark."""
 
-import os
 import unittest
-from pathlib import Path
 
+from tests.helper.testcase import BenchmarkTestCase
 from superbench.benchmarks import BenchmarkRegistry, ReturnCode, Platform, BenchmarkType
 
 
-class RocmGemmFlopsTest(unittest.TestCase):
+class RocmGemmFlopsTest(BenchmarkTestCase, unittest.TestCase):
     """Tests for RocmGemmFlops benchmark."""
-    def setUp(self):
-        """Method called to prepare the test fixture."""
-        # Create fake binary file just for testing.
-        os.environ['SB_MICRO_PATH'] = '/tmp/superbench/'
-        binary_path = os.path.join(os.getenv('SB_MICRO_PATH'), 'bin')
-        Path(binary_path).mkdir(parents=True, exist_ok=True)
-        self.__binary_file = Path(os.path.join(binary_path, 'rocblas-bench'))
-        self.__binary_file.touch(mode=0o755, exist_ok=True)
-
-    def tearDown(self):
-        """Method called after the test method has been called and the result recorded."""
-        self.__binary_file.unlink()
+    @classmethod
+    def setUpClass(cls):
+        """Hook method for setting up class fixture before running tests in the class."""
+        super().setUpClass()
+        cls.createMockEnvs(cls)
+        cls.createMockFiles(cls, ['bin/rocblas-bench'])
 
     def test_rocm_flops_performance(self):
         """Test gemm-flops benchmark."""
@@ -92,11 +85,11 @@ T,N,7680,8192,8192,1,8416,0,8416,8416,8416,1, 162675, 6336.5
         assert (benchmark._process_raw_result(3, raw_output_BF16_X))
         assert (benchmark._process_raw_result(4, raw_output_INT8_X))
 
-        assert (benchmark.result['FP64'][0] == 10037.5)
-        assert (benchmark.result['FP32_xDLOPS'][0] == 39441.6)
-        assert (benchmark.result['FP16_xDLOPS'][0] == 153728)
-        assert (benchmark.result['BF16_xDLOPS'][0] == 81374.3)
-        assert (benchmark.result['INT8_xDLOPS'][0] == 162675)
+        assert (benchmark.result['fp64_flops'][0] == 10037.5)
+        assert (benchmark.result['fp32_xdlops_flops'][0] == 39441.6)
+        assert (benchmark.result['fp16_xdlops_flops'][0] == 153728)
+        assert (benchmark.result['bf16_xdlops_flops'][0] == 81374.3)
+        assert (benchmark.result['int8_xdlops_iops'][0] == 162675)
 
         # Negative case - Add invalid raw output.
         assert (benchmark._process_raw_result(4, 'Invalid raw output') is False)

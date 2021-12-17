@@ -6,7 +6,7 @@
 import os
 
 from superbench.common.utils import logger
-from superbench.common.utils import nv_helper
+from superbench.common.utils import device_manager as dm
 from superbench.benchmarks import BenchmarkRegistry, Platform, ReturnCode
 from superbench.benchmarks.micro_benchmarks import GemmFlopsBenchmark
 
@@ -27,21 +27,21 @@ class CudaGemmFlopsBenchmark(GemmFlopsBenchmark):
         # TODO - To support more architecutres, currently only support compute capability = 7.0 and 8.0
         self.__kernel_map = {
             7.0: {
-                'FP64': 'cutlass_simt_dgemm_128x128_8x2_*',
-                'FP32': 'cutlass_simt_sgemm_128x128_8x2_*',
-                'FP16': 'cutlass_simt_hgemm_256x128_8x2_*',
-                'FP16_TC': 'cutlass_tensorop_h884gemm_256x128_32x2_*',
+                'fp64': 'cutlass_simt_dgemm_128x128_8x2_*',
+                'fp32': 'cutlass_simt_sgemm_128x128_8x2_*',
+                'fp16': 'cutlass_simt_hgemm_256x128_8x2_*',
+                'fp16_tc': 'cutlass_tensorop_h884gemm_256x128_32x2_*',
             },
             8.0: {
-                'FP64': 'cutlass_simt_dgemm_128x128_8x2_*',
-                'FP32': 'cutlass_simt_sgemm_128x128_8x2_*',
-                'FP16': 'cutlass_simt_hgemm_256x128_8x2_*',
-                'FP64_TC': 'cutlass_tensorop_d884gemm_128x128_16x3_*',
-                'TF32_TC': 'cutlass_tensorop_tf32_s1688gemm_tf32_256x128_16x3_*',
-                'BF16_TC': 'cutlass_tensorop_bf16_s16816gemm_bf16_256x128_32x3_*',
-                'FP16_TC': 'cutlass_tensorop_h16816gemm_256x128_32x3_*',
-                'INT8_TC': 'cutlass_tensorop_s8_i16832gemm_s8_256x128_64x3_*',
-                'INT4_TC': 'cutlass_tensorop_s4_i16864gemm_s4_256x128_128x3_*',
+                'fp64': 'cutlass_simt_dgemm_128x128_8x2_*',
+                'fp32': 'cutlass_simt_sgemm_128x128_8x2_*',
+                'fp16': 'cutlass_simt_hgemm_256x128_8x2_*',
+                'fp64_tc': 'cutlass_tensorop_d884gemm_128x128_16x3_*',
+                'tf32_tc': 'cutlass_tensorop_tf32_s1688gemm_tf32_256x128_16x3_*',
+                'bf16_tc': 'cutlass_tensorop_bf16_s16816gemm_bf16_256x128_32x3_*',
+                'fp16_tc': 'cutlass_tensorop_h16816gemm_256x128_32x3_*',
+                'int8_tc': 'cutlass_tensorop_s8_i16832gemm_s8_256x128_64x3_*',
+                'int4_tc': 'cutlass_tensorop_s4_i16864gemm_s4_256x128_128x3_*',
             }
         }
         self.__parse_logline = [
@@ -64,7 +64,7 @@ class CudaGemmFlopsBenchmark(GemmFlopsBenchmark):
             True if _preprocess() succeed.
         """
         # Reset kernels according to compute capability.
-        capability = nv_helper.get_device_compute_capability()
+        capability = dm.device_manager.get_device_compute_capability()
         if capability not in self.__kernel_map:
             # After preprocess() self._result.return_code can be generated
             super()._preprocess()
@@ -128,7 +128,7 @@ class CudaGemmFlopsBenchmark(GemmFlopsBenchmark):
                 )
                 return False
 
-        self._result.add_result(precision, max(flops))
+        self._result.add_result(self._metric_map[precision], max(flops))
 
         return True
 

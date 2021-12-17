@@ -124,9 +124,25 @@ class ModelBenchmark(Benchmark):
             help='Enable option to pin memory in data loader.',
         )
 
+        self._parser.add_argument(
+            '--force_fp32',
+            action='store_true',
+            default=False,
+            help='Enable option to use full float32 precision.',
+        )
+
     @abstractmethod
     def _judge_gpu_availability(self):
         """Judge GPUs' availability according to arguments and running environment."""
+        pass
+
+    @abstractmethod
+    def _set_force_fp32(self):
+        """Set the config that controls whether full float32 precision will be used.
+
+        On Ampere or newer GPUs, pytorch and tensorflow will use TF32 instead of FP32 by default.
+        We can disable TF32 execution by setting force_fp32 as True.
+        """
         pass
 
     @abstractmethod
@@ -166,9 +182,10 @@ class ModelBenchmark(Benchmark):
             return False
 
         self._judge_gpu_availability()
+        self._set_force_fp32()
         logger.info(
-            'Model placement - model: {}, GPU availablility: {}, pin memory: {}.'.format(
-                self._name, self._gpu_available, self._args.pin_memory
+            'Model placement - model: {}, GPU availablility: {}, pin memory: {}, force fp32: {}.'.format(
+                self._name, self._gpu_available, self._args.pin_memory, self._args.force_fp32
             )
         )
 
@@ -356,7 +373,10 @@ class ModelBenchmark(Benchmark):
             )
             return False
 
-        metric = 'steptime_{}_{}'.format(model_action, precision)
+        precision_metric = {'float16': 'fp16', 'float32': 'fp32', 'float64': 'fp64', 'bfloat16': 'bf16'}
+        if precision.value in precision_metric.keys():
+            precision = precision_metric[precision.value]
+        metric = '{}_{}_step_time'.format(precision, model_action)
         self._result.add_raw_data(metric, step_times)
         avg = statistics.mean(step_times)
         self._result.add_result(metric, avg, reduce_type=ReduceType.MAX if model_action is ModelAction.TRAIN else None)
@@ -364,7 +384,7 @@ class ModelBenchmark(Benchmark):
         # The unit of step time is millisecond, use it to calculate the throughput with the unit samples/sec.
         millisecond_per_second = 1000
         throughput = [millisecond_per_second / step_time * self._args.batch_size for step_time in step_times]
-        metric = 'throughput_{}_{}'.format(model_action, precision)
+        metric = '{}_{}_throughput'.format(precision, model_action)
         self._result.add_raw_data(metric, throughput)
         avg = statistics.mean(throughput)
         self._result.add_result(metric, avg, reduce_type=ReduceType.MIN if model_action is ModelAction.TRAIN else None)

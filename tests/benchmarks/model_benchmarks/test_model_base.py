@@ -42,6 +42,10 @@ class FakeModelBenchmark(ModelBenchmark):
         """Judge GPUs' availability according to arguments and running environment."""
         self._gpu_available = False
 
+    def _set_force_fp32(self):
+        """Set the config that controls whether full float32 precision will be used."""
+        pass
+
     def _init_distributed_setting(self):
         """Initialize the distributed library and bind the worker to GPU."""
         return True
@@ -161,6 +165,7 @@ def test_arguments_related_interfaces():
                         Distributed backends. E.g. nccl mpi gloo.
   --no_gpu              Disable GPU training.
   --pin_memory          Enable option to pin memory in data loader.
+  --force_fp32          Enable option to use full float32 precision.
   --hidden_size int     Hidden size.
   --seq_len int         Sequence length."""
     )
@@ -194,6 +199,7 @@ def test_preprocess():
                         Distributed backends. E.g. nccl mpi gloo.
   --no_gpu              Disable GPU training.
   --pin_memory          Enable option to pin memory in data loader.
+  --force_fp32          Enable option to use full float32 precision.
   --hidden_size int     Hidden size.
   --seq_len int         Sequence length."""
     )
@@ -217,10 +223,10 @@ def test_train():
     expected_result = (
         '{"name": "pytorch-fake-model", "type": "model", "run_count": 1, "return_code": 0, '
         '"start_time": null, "end_time": null, "raw_data": {'
-        '"steptime_train_float32": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]], '
-        '"throughput_train_float32": [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]]}, '
-        '"result": {"steptime_train_float32": [2.0], "throughput_train_float32": [16000.0]}, '
-        '"reduce_op": {"steptime_train_float32": "max", "throughput_train_float32": "min"}}'
+        '"fp32_train_step_time": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]], '
+        '"fp32_train_throughput": [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]]}, '
+        '"result": {"return_code": [0], "fp32_train_step_time": [2.0], "fp32_train_throughput": [16000.0]}, '
+        '"reduce_op": {"return_code": null, "fp32_train_step_time": "max", "fp32_train_throughput": "min"}}'
     )
     assert (benchmark._preprocess())
     assert (benchmark._ModelBenchmark__train(Precision.FLOAT32))
@@ -230,7 +236,8 @@ def test_train():
     benchmark = create_benchmark('--num_steps 0')
     expected_result = (
         '{"name": "pytorch-fake-model", "type": "model", "run_count": 1, "return_code": 3, '
-        '"start_time": null, "end_time": null, "raw_data": {}, "result": {}, "reduce_op": {}}'
+        '"start_time": null, "end_time": null, "raw_data": {}, '
+        '"result": {"return_code": [3]}, "reduce_op": {"return_code": null}}'
     )
     assert (benchmark._preprocess())
     assert (benchmark._ModelBenchmark__train(Precision.FLOAT32) is False)
@@ -243,10 +250,11 @@ def test_inference():
     expected_result = (
         '{"name": "pytorch-fake-model", "type": "model", "run_count": 1, "return_code": 0, '
         '"start_time": null, "end_time": null, "raw_data": {'
-        '"steptime_inference_float16": [[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]], '
-        '"throughput_inference_float16": [[8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0]]}, '
-        '"result": {"steptime_inference_float16": [4.0], "throughput_inference_float16": [8000.0]}, '
-        '"reduce_op": {"steptime_inference_float16": null, "throughput_inference_float16": null}}'
+        '"fp16_inference_step_time": [[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]], '
+        '"fp16_inference_throughput": [[8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0]]}, '
+        '"result": {"return_code": [0], '
+        '"fp16_inference_step_time": [4.0], "fp16_inference_throughput": [8000.0]}, '
+        '"reduce_op": {"return_code": null, "fp16_inference_step_time": null, "fp16_inference_throughput": null}}'
     )
     assert (benchmark._preprocess())
     assert (benchmark._ModelBenchmark__inference(Precision.FLOAT16))
@@ -256,7 +264,8 @@ def test_inference():
     benchmark = create_benchmark('--num_steps 0')
     expected_result = (
         '{"name": "pytorch-fake-model", "type": "model", "run_count": 1, "return_code": 3, '
-        '"start_time": null, "end_time": null, "raw_data": {}, "result": {}, "reduce_op": {}}'
+        '"start_time": null, "end_time": null, "raw_data": {}, '
+        '"result": {"return_code": [3]}, "reduce_op": {"return_code": null}}'
     )
     assert (benchmark._preprocess())
     assert (benchmark._ModelBenchmark__inference(Precision.FLOAT16) is False)
@@ -274,30 +283,31 @@ def test_benchmark():
     assert (benchmark.run_count == 1)
     assert (benchmark.return_code == ReturnCode.SUCCESS)
     expected_raw_data = {
-        'steptime_train_float32': [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]],
-        'throughput_train_float32': [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]],
-        'steptime_train_float16': [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]],
-        'throughput_train_float16': [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]]
+        'fp32_train_step_time': [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]],
+        'fp32_train_throughput': [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]],
+        'fp16_train_step_time': [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]],
+        'fp16_train_throughput': [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]]
     }
     assert (benchmark.raw_data == expected_raw_data)
     expected_result = {
-        'steptime_train_float32': [2.0],
-        'throughput_train_float32': [16000.0],
-        'steptime_train_float16': [2.0],
-        'throughput_train_float16': [16000.0]
+        'return_code': [0],
+        'fp32_train_step_time': [2.0],
+        'fp32_train_throughput': [16000.0],
+        'fp16_train_step_time': [2.0],
+        'fp16_train_throughput': [16000.0]
     }
     assert (benchmark.result == expected_result)
 
     expected_serialized_result = (
         '{"name": "pytorch-fake-model", "type": "model", "run_count": 1, "return_code": 0, "start_time": null, '
-        '"end_time": null, "raw_data": {"steptime_train_float32": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]], '
-        '"throughput_train_float32": [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]], '
-        '"steptime_train_float16": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]], '
-        '"throughput_train_float16": [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]]}, '
-        '"result": {"steptime_train_float32": [2.0], "throughput_train_float32": [16000.0], '
-        '"steptime_train_float16": [2.0], "throughput_train_float16": [16000.0]}, '
-        '"reduce_op": {"steptime_train_float32": "max", "throughput_train_float32": "min", '
-        '"steptime_train_float16": "max", "throughput_train_float16": "min"}}'
+        '"end_time": null, "raw_data": {"fp32_train_step_time": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]], '
+        '"fp32_train_throughput": [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]], '
+        '"fp16_train_step_time": [[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]], '
+        '"fp16_train_throughput": [[16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0]]}, '
+        '"result": {"return_code": [0], "fp32_train_step_time": [2.0], "fp32_train_throughput": [16000.0], '
+        '"fp16_train_step_time": [2.0], "fp16_train_throughput": [16000.0]}, '
+        '"reduce_op": {"return_code": null, "fp32_train_step_time": "max", "fp32_train_throughput": "min", '
+        '"fp16_train_step_time": "max", "fp16_train_throughput": "min"}}'
     )
     assert (benchmark.serialized_result == expected_serialized_result)
 
@@ -331,7 +341,7 @@ def test_check_result_format():
     assert (benchmark._Benchmark__check_raw_data())
 
     # Negative case for __check_result_format() - change List[int] to List[str].
-    benchmark._result._BenchmarkResult__result = {'metric1': ['2.0']}
+    benchmark._result._BenchmarkResult__result = {'return_code': [0], 'metric1': ['2.0']}
     assert (benchmark._Benchmark__check_summarized_result() is False)
 
     # Negative case for __check_raw_data() - change List[List[int]] to List[List[str]].

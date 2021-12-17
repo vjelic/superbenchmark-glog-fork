@@ -1,7 +1,11 @@
 # SuperBench Config
-version: v0.2
+version: v0.3
 superbench:
   enable: null
+  monitor:
+    enable: false
+    sample_duration: 1
+    sample_interval: 10
   var:
     default_local_mode: &default_local_mode
       enable: true
@@ -32,7 +36,10 @@ superbench:
       enable: true
       modes:
         - name: local
-          prefix: NCCL_DEBUG=INFO NCCL_IB_DISABLE=1
+          proc_num: 1
+          parallel: no
+      parameters:
+        ngpus: 8
     ib-loopback:
       enable: true
       modes:
@@ -53,24 +60,37 @@ superbench:
       parameters:
         block_devices:
           - /dev/nvme0n1
+    cpu-memory-bw-latency:
+      enable: false
+      modes:
+        - name: local
+          proc_num: 1
+          parallel: no
+      parameters:
+        tests:
+          - bandwidth_matrix
+          - latency_matrix
+          - max_bandwidth
     mem-bw:
       enable: true
       modes:
         - name: local
           proc_num: 8
-          prefix: CUDA_VISIBLE_DEVICES={proc_rank} numactl -c $(({proc_rank}/2))
-          parallel: yes
-    gpu-sm-copy-bw:
+          prefix: CUDA_VISIBLE_DEVICES={proc_rank} numactl -N $(({proc_rank}/2))
+          parallel: no
+    gpu-copy-bw:
       enable: true
       modes:
         - name: local
-          proc_num: 32
-          prefix: CUDA_VISIBLE_DEVICES=$(({proc_rank}%8)) numactl -N $(({proc_rank}%4)) -m $(({proc_rank}%4))
           parallel: no
       parameters:
         mem_type:
-          - dtoh
           - htod
+          - dtoh
+          - dtod
+        copy_type:
+          - sm
+          - dma
     kernel-launch:
       <<: *default_local_mode
     gemm-flops:
@@ -87,6 +107,9 @@ superbench:
       <<: *default_pytorch_mode
     computation-communication-overlap:
       <<: *default_pytorch_mode
+    ort-inference:
+      <<: *default_local_mode
+      enable: false
     gpt_models:
       <<: *default_pytorch_mode
       models:

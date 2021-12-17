@@ -11,11 +11,13 @@ FROM rocm/pytorch:rocm4.0_ubuntu18.04_py3.6_pytorch_1.7.0
 #   - RCCL: 2.7.8
 # Mellanox:
 #   - OFED: 5.2-2.2.3.0
+# Intel:
+#   - mlc: v3.9a
 
 LABEL maintainer="SuperBench"
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN wget -qO - http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 apt-key add - && \
+RUN wget -qO - http://repo.radeon.com/rocm/rocm.gpg.key | APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 apt-key add - && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     autoconf \
@@ -27,6 +29,7 @@ RUN wget -qO - http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | APT_KEY_DON
     jq \
     libaio-dev \
     libcap2 \
+    libnuma-dev \
     libpci-dev \
     libtinfo5 \
     libtool \
@@ -80,6 +83,23 @@ RUN cd /tmp && \
     PATH=/usr/bin:${PATH} MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64/mlnxofedinstall --user-space-only --without-fw-update --force --all && \
     rm -rf MLNX_OFED_LINUX-${OFED_VERSION}*
 
+# Install HPC-X
+RUN cd /opt && \
+    wget -q https://azhpcstor.blob.core.windows.net/azhpc-images-store/hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64.tbz && \
+    tar xf hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64.tbz && \
+    ln -s hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64 hpcx && \
+    rm hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64.tbz
+
+# Install Intel MLC
+RUN cd /tmp && \
+    mkdir -p mlc && \
+    cd mlc && \
+    wget --user-agent="Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0" https://www.intel.com/content/dam/develop/external/us/en/documents/mlc_v3.9a.tgz && \
+    tar xvf mlc_v3.9a.tgz && \
+    cp ./Linux/mlc /usr/local/bin/ && \
+    cd /tmp && \
+    rm -rf mlc
+
 ENV PATH="${PATH}" \
     LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}" \
     SB_HOME="/opt/superbench" \
@@ -96,5 +116,5 @@ RUN mv /root/.local/bin/* /opt/conda/bin/ && \
     rm -rf /root/.local
 
 ADD . .
-RUN python3 -m pip install .[torch] && \
+RUN python3 -m pip install .[torch,ort] && \
     make cppbuild

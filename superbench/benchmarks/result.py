@@ -31,7 +31,9 @@ class BenchmarkResult():
         self.__end_time = None
         self.__raw_data = dict()
         self.__result = dict()
+        self.__result['return_code'] = [return_code.value]
         self.__reduce_op = dict()
+        self.__reduce_op['return_code'] = None
 
     def __eq__(self, rhs):
         """Override equal function for deep comparison.
@@ -119,6 +121,7 @@ class BenchmarkResult():
             return_code (ReturnCode): return code defined in superbench.benchmarks.ReturnCode.
         """
         self.__return_code = return_code
+        self.__result['return_code'][0] = return_code.value
 
     def to_string(self):
         """Serialize the BenchmarkResult object to string.
@@ -157,6 +160,15 @@ class BenchmarkResult():
     def return_code(self):
         """Decoration function to access __return_code."""
         return self.__return_code
+
+    @property
+    def default_metric_count(self):
+        """Decoration function to get the count of default metrics."""
+        count = 0
+        if 'return_code' in self.__result:
+            count += 1
+
+        return count
 
     @property
     def start_time(self):
