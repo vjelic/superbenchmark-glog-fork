@@ -92,7 +92,7 @@ class SuperBenchRunner():
                     if not mode.env:
                         self._sb_benchmarks[name].modes[idx].env = {}
                     for key in ['PATH', 'LD_LIBRARY_PATH', 'SB_MICRO_PATH']:
-                        self._sb_benchmarks[name].modes[idx].env.setdefault(key, None)
+                        self._sb_benchmarks[name].modes[idx].env.setdefault('SB_MICRO_PATH', '/opt/superbench')
 
     def __get_enabled_benchmarks(self):
         """Get enabled benchmarks list.
