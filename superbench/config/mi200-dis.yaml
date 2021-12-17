@@ -5,7 +5,7 @@
 
 version: v0.3
 superbench:
-  enable: ['densenet_models','gpt_models','bert_models','lstm_models','vgg_models','resnet_models']
+  enable: ['rccl-bw']
   var:
     default_local_mode: &default_local_mode
       enable: true
@@ -46,7 +46,7 @@ superbench:
           env:
             NCCL_IB_GDR_LEVEL: 5
             HSA_ENABLE_SDMA: 0
-            LD_LIBRARY_PATH: /root/rccl-rdma-sharp-plugins/src/.libs 
+            LD_LIBRARY_PATH: /root/rccl-rdma-sharp-plugins/src/.libs:/opt/mpich/lib
             NCCL_MIN_NCHANNELS: 16 
             NCCL_NET_GDR_READ: 1
             NCCL_IB_PCI_RELAXED_ORDERING: 1

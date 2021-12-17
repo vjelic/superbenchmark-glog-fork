@@ -43,7 +43,7 @@ superbench:
         - name: local
           proc_num: 1
           parallel: no
-          prefix: HSA_ENABLE_SDMA=0
+          prefix: HSA_ENABLE_SDMA=0 LD_LIBRARY_PATH=/opt/mpich/lib:$LD_LIBRARY_PATH
       parameters:
         maxbytes: 16G
         ngpus: 16
