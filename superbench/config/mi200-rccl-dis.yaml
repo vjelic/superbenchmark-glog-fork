@@ -5,27 +5,27 @@
 
 version: v0.3
 superbench:
-  enable: ['gpu-sm-copy-bw']
+  enable: ['rccl-bw']
   var:
     default_local_mode: &default_local_mode
       enable: true
       modes:
         - name: local
-          proc_num: 16
-          prefix: HIP_VISIBLE_DEVICES={proc_rank}
-          parallel: yes
+          proc_num: 1
+          prefix: HIP_VISIBLE_DEVICES=1
+          parallel: no
     default_pytorch_mode: &default_pytorch_mode
       enable: true
       modes:
         - name: torch.distributed
           proc_num: 16
-          node_num: 1
+          node_num: 2
       frameworks:
         - pytorch
     common_model_config: &common_model_config
       duration: 0
       num_warmup: 64
-      num_steps: 2048
+      num_steps: 100
       sample_count: 8192
       batch_size: 32
       precision:
@@ -40,17 +40,29 @@ superbench:
     rccl-bw:
       enable: true
       modes:
-        - name: local
-          proc_num: 1
-          parallel: no
+        - name: mpi
+          proc_num: 16
+          env:
+            NCCL_SOCKET_IFNAME: ens17f0
+            NCCL_IB_GDR_LEVEL: 5
+            HSA_ENABLE_SDMA: 0
+            LD_LIBRARY_PATH: /root/rccl-rdma-sharp-plugins/src/.libs 
+            NCCL_MIN_NCHANNELS: 16 
+            NCCL_NET_GDR_READ: 1
+            NCCL_IB_PCI_RELAXED_ORDERING: 1
       parameters:
-        maxbytes: 16G
-        ngpus: 16
+        maxbytes: 1G
         operation: allreduce
+        ngpus: 1
     mem-bw:
-      <<: *default_local_mode
+      enable: true
+      modes:
+        - name: local
+          proc_num: 16
+          prefix: HIP_VISIBLE_DEVICES={proc_rank} HSA_ENABLE_SDMA=0
+          parallel: no
     gemm-flops:
-      enable: false
+      <<: *default_local_mode
       parameters:
         m: 7680
         n: 8192
@@ -59,8 +71,8 @@ superbench:
       enable: true
       modes:
         - name: local
-          proc_num: 8
-          prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3,4,5,6,7
+          proc_num: 32
+          prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7 numactl -N $(({proc_rank}/8)) -m $(({proc_rank}/8))
           parallel: no
     disk-benchmark:
       enable: false
@@ -70,17 +82,19 @@ superbench:
           parallel: no
       parameters:
         block_devices: []
-    gpu-sm-copy-bw:
+    gpu-copy-bw:
       enable: true
       modes:
         - name: local
-          proc_num: 64
-          prefix: HIP_VISIBLE_DEVICES=$(({proc_rank}%16)) numactl -N $(({proc_rank}/16)) -m $(({proc_rank}/16))
           parallel: no
       parameters:
         mem_type:
-          - dtoh
           - htod
+          - dtoh
+          - dtod
+        copy_type:
+          - sm
+          - dma
     gpt_models:
       <<: *default_pytorch_mode
       models:
@@ -135,3 +149,4 @@ superbench:
       parameters:
         <<: *common_model_config
         pin_memory: no
+

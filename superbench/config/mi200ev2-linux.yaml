@@ -12,7 +12,7 @@ superbench:
       modes:
         - name: local
           proc_num: 16
-          prefix: HIP_VISIBLE_DEVICES={proc_rank}
+          prefix: HIP_VISIBLE_DEVICES={proc_rank} HSA_ENABLE_SDMA=0
           parallel: yes
     default_pytorch_mode: &default_pytorch_mode
       enable: true
@@ -43,6 +43,7 @@ superbench:
         - name: local
           proc_num: 1
           parallel: no
+          prefix: HSA_ENABLE_SDMA=0
       parameters:
         maxbytes: 16G
         ngpus: 16
@@ -52,10 +53,10 @@ superbench:
       modes:
         - name: local
           proc_num: 16
-          prefix: HIP_VISIBLE_DEVICES={proc_rank}
+          prefix: HIP_VISIBLE_DEVICES={proc_rank} HSA_ENABLE_SDMA=0
           parallel: no
     gemm-flops:
-      enable: false
+      <<: *default_local_mode
       parameters:
         m: 7680
         n: 8192
@@ -64,8 +65,8 @@ superbench:
       enable: true
       modes:
         - name: local
-          proc_num: 8
-          prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3,4,5,6,7
+          proc_num: 32
+          prefix: PROC_RANK={proc_rank} IB_DEVICES=0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7 numactl -N $(({proc_rank}/8)) -m $(({proc_rank}/8))
           parallel: no
     disk-benchmark:
       enable: false
@@ -75,17 +76,19 @@ superbench:
           parallel: no
       parameters:
         block_devices: []
-    gpu-sm-copy-bw:
+    gpu-copy-bw:
       enable: true
       modes:
         - name: local
-          proc_num: 64
-          prefix: HIP_VISIBLE_DEVICES=$(({proc_rank}%16)) numactl -N $(({proc_rank}/16)) -m $(({proc_rank}/16))
           parallel: no
       parameters:
         mem_type:
-          - dtoh
           - htod
+          - dtoh
+          - dtod
+        copy_type:
+          - sm
+          - dma
     gpt_models:
       <<: *default_pytorch_mode
       models:
@@ -140,3 +143,4 @@ superbench:
       parameters:
         <<: *common_model_config
         pin_memory: no
+
