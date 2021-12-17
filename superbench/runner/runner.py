@@ -91,8 +91,7 @@ class SuperBenchRunner():
                 elif mode.name == 'mpich':
                     if not mode.env:
                         self._sb_benchmarks[name].modes[idx].env = {}
-                    for key in ['PATH', 'LD_LIBRARY_PATH', 'SB_MICRO_PATH']:
-                        self._sb_benchmarks[name].modes[idx].env.setdefault('SB_MICRO_PATH', '/opt/superbench')
+                    self._sb_benchmarks[name].modes[idx].env.setdefault('SB_MICRO_PATH', '/opt/superbench')
 
     def __get_enabled_benchmarks(self):
         """Get enabled benchmarks list.
@@ -166,14 +165,12 @@ class SuperBenchRunner():
         elif mode.name == 'mpich':
             mode_command = (
                 'mpirun.mpich '    # use default OpenMPI in image
-                '-tag-output '    # tag mpi output with [jobid,rank]<stdout/stderr> prefix
                 '-f hostfile '    # use prepared hostfile
-                '-map-by ppr:{proc_num}:node '    # launch {proc_num} processes on each node
                 '-bind-to numa '    # bind processes to numa
                 '{env_list} {command}'
             ).format(
                 proc_num=mode.proc_num,
-                env_list=' '.join(f'-env {k}={v}' if v else f'-env {k}' for k, v in mode.env.items()),
+                env_list=' '.join(f'-env {k}={v}' for k, v in mode.env.items()),
                 command=exec_command,
             )
         else:
