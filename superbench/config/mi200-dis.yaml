@@ -12,7 +12,7 @@ superbench:
       modes:
         - name: local
           proc_num: 1
-          prefix: HIP_VISIBLE_DEVICES=1
+          prefix: HIP_VISIBLE_DEVICES={proc_rank} HSA_ENABLE_SDMA=0
           parallel: no
     default_pytorch_mode: &default_pytorch_mode
       enable: true
@@ -46,7 +46,7 @@ superbench:
           env:
             NCCL_IB_GDR_LEVEL: 5
             HSA_ENABLE_SDMA: 0
-            LD_LIBRARY_PATH: /root/rccl-rdma-sharp-plugins/src/.libs:/opt/mpich/lib
+            LD_LIBRARY_PATH: /opt/rccl-rdma-sharp-plugins/src/.libs:/opt/mpich/lib
             NCCL_MIN_NCHANNELS: 16 
             NCCL_NET_GDR_READ: 1
             NCCL_IB_PCI_RELAXED_ORDERING: 1

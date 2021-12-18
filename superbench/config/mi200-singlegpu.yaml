@@ -12,14 +12,14 @@ superbench:
       modes:
         - name: local
           proc_num: 1
-          prefix: HIP_VISIBLE_DEVICES=1
+          prefix: HIP_VISIBLE_DEVICES={proc_rank} HSA_ENABLE_SDMA=0
           parallel: no
     default_pytorch_mode: &default_pytorch_mode
       enable: true
       modes:
         - name: local
           proc_num: 16
-          prefix: HIP_VISIBLE_DEVICES=1 HSA_ENABLE_SDMA=0
+          prefix: HIP_VISIBLE_DEVICES={proc_rank} HSA_ENABLE_SDMA=0
           parallel: yes
       frameworks:
         - pytorch
