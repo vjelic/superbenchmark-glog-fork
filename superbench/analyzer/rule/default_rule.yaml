@@ -1,0 +1,109 @@
+# SuperBench rules
+version: v0.3
+superbench:
+  rules:
+    kernel_launch:
+      function: variance
+      criteria: lambda x:x>0.10
+      categories: KernelLaunch
+      metrics:
+        - kernel-launch/event_time:\d+
+        - kernel-launch/wall_time:\d+
+    mem_bw:
+      function: variance
+      criteria: 'lambda x:x<-0.05'
+      categories: Mem
+      metrics:
+        - mem-bw/h2d_bw:\d+
+        - mem-bw/d2h_bw:\d+
+    gflops:
+      function: variance
+      criteria: 'lambda x:x<-0.05'
+      categories: GFLOPS
+      metrics:
+        - gemm-flops/fp64_flops:\d+
+        - gemm-flops/fp32_flops:\d+
+        - gemm-flops/fp16_flops:\d+
+    tensor_core:
+      function: variance
+      criteria: 'lambda x:x<-0.05'
+      categories: TensorCore
+      metrics:   
+        - gemm-flops/fp64_tc_flops:\d+
+        - gemm-flops/fp32_tc_flops:\d+
+        - gemm-flops/fp16_tc_flops:\d+
+        - gemm-flops/int8_tc_iops:\d+
+        - gemm-flops/int4_tc_iops:\d+
+    rdma_loopback:
+      function: variance
+      criteria: 'lambda x:x<-0.05'
+      categories: RDMA
+      metrics:
+        - ib-loopback/ib_write_8388608_ib\d+_bw:\d+
+    model_throughput:
+      function: variance
+      criteria: 'lambda x:x<-0.05'
+      categories: Model
+      metrics:
+        - gpt_models/.*/.*_train_throughput
+        - lstm_models/pytorch-lstm/.*_train_throughput
+        - bert_models/pytorch-bert-.*/.*_train_throughput
+        - resnet_models/pytorch-resnet\d+/.*_train_throughput
+        - vgg_models/pytorch-vgg\d+/.*_train_throughput
+    op_matmul:
+      function: variance
+      criteria: 'lambda x:x>0.05'
+      categories: Matmul
+      metrics:   
+        - pytorch-matmul/nosharding_time:\d+
+        - pytorch-sharding-matmul/.*_time:\d+
+    overlap:
+      function: variance
+      criteria: 'lambda x:x>0.05'
+      categories: Computation-Communication-Overlap
+      metrics:
+        - pytorch-computation-communication-overlap/.*_time:\d+
+    nccl:
+      function: variance
+      criteria: 'lambda x:x<-0.05'
+      categories: NCCL
+      metrics:
+        - nccl-bw/allreduce_8589934592_busbw:\d+
+    gpu_temperature:
+      function: value
+      criteria: 'lambda x:x>85'
+      categories: TEMP
+      metrics:
+        - gpu_temperature:\d+
+    gpu_ecc:
+      function: value
+      criteria: 'lambda x:x>5'
+      categories: ECC
+      metrics:
+        - gpu_corrected_ecc:\d+
+        - gpu_uncorrected_ecc:\d+
+    gpu_power:
+      function: value
+      criteria: 'lambda x:x<350'
+      categories: POW
+      metrics:
+        - gpu_power_limit:\d+
+    falure_rule:
+      function: value
+      criteria: 'lambda x:x>0'
+      categories: FailedTest
+      metrics:
+        - kernel-launch/return_code:\d+
+        - mem-bw/return_code:\d+
+        - gemm-flops/return_code:\d+
+        - ib-loopback/return_code:\d+
+        - gpt_models/pytorch-gpt2-small/return_code:\d+
+        - gpt_models/pytorch-gpt2-large/return_code:\d+
+        - bert_models/pytorch-bert-.*/return_code:\d+
+        - lstm_models/pytorch-lstm/return_code:\d+
+        - resnet_models/pytorch-resnet\d+/return_code:\d+
+        - vgg_models/pytorch-vgg\d+/return_code:\d+
+        - pytorch-matmul/return_code:\d+
+        - pytorch-sharding-matmul/return_code:\d+
+        - pytorch-computation-communication-overlap/return_code:\d+
+        - nccl-bw/return_code:\d+
