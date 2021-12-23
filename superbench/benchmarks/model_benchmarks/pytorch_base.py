@@ -70,7 +70,7 @@ class PytorchBase(ModelBenchmark):
 
                 port = int(os.environ['MASTER_PORT']) + 1
                 addr = os.environ['MASTER_ADDR']
-                rank = int(os.environ['LOCAL_RANK'])
+                rank = int(os.environ['RANK'])
                 world_size = int(os.environ['WORLD_SIZE'])
                 logger.info('ip:{},port:{},rank:{},world:{}'.format(addr, str(port), str(rank), str(world_size)))
                 store = PrefixStore(self._name, TCPStore(addr, port, world_size, rank == 0, timedelta(seconds=300)))
