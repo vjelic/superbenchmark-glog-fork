@@ -153,7 +153,7 @@ class SuperBenchRunner():
         elif mode.name == 'mpi':
             if not mode.impl or mode.impl == 'openmpi':
                 mode_command = (
-                    'mpirun'    # use default OpenMPI in image
+                    'mpirun '    # use default OpenMPI in image
                     '-tag-output '    # tag mpi output with [jobid,rank]<stdout/stderr> prefix
                     '-allow-run-as-root '    # allow mpirun to run when executed by root user
                     '-hostfile hostfile '    # use prepared hostfile
@@ -163,7 +163,7 @@ class SuperBenchRunner():
                 ).format(
                     proc_num=mode.proc_num,
                     mca_list=' '.join(f'-mca {k} {v}' for k, v in mode.mca.items()),
-                    env_list=' '.join(f'-x {k}={v}' if v else f'-x {k}' for k, v in mode.env.items()),
+                    env_list=' '.join(f'-x {k}={v}' if v is None else f'-x {k}' for k, v in mode.env.items()),
                     command=exec_command,
                 )
             elif mode.impl == 'mpich':
@@ -421,4 +421,3 @@ class SuperBenchRunner():
             self.fetch_results()
 
         self.__create_results_summary()
-
