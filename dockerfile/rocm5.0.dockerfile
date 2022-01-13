@@ -83,15 +83,14 @@ ADD . .
 RUN python3 -m pip install .[torch] && \
     make cppbuild
 
-ADD /home/amduser/ubuntu2004 /home/amduser/
-RUN echo -e  "deb [trusted=yes arch=amd64] file:/home/amduser/ubuntu2004 ./" > /etc/apt/source.list.d/rocm.list  && \
-    sudo apt update && \
-    sudo apt install libboost-program-options-dev && \
+# Install rocblas-clients
+RUN sudo apt install libboost-program-options-dev && \
     sudo apt install libomp-dev && \
     sudo apt install gfortran-7 && \
     sudo apt install rocblas-clients && \
     cp -v /opt/rocm/rocblas/bin/rocblas-bench ${SB_MICRO_PATH}/bin/
 
+# Install rccl-rdma-sharp-plugins
 RUN cd /opt/rocm && \
     git clone -b release/rocm-rel-5.0 https://github.com/ROCmSoftwarePlatform/rccl-rdma-sharp-plugins.git && \
     cd rccl-rdma-sharp-plugins && \
