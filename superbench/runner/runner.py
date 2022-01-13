@@ -163,7 +163,7 @@ class SuperBenchRunner():
                 ).format(
                     proc_num=mode.proc_num,
                     mca_list=' '.join(f'-mca {k} {v}' for k, v in mode.mca.items()),
-                    env_list=' '.join(f'-x {k}={v}' if v is None else f'-x {k}' for k, v in mode.env.items()),
+                    env_list=' '.join(f'-x {k}={v}' if v is not None else f'-x {k}' for k, v in mode.env.items()),
                     command=exec_command,
                 )
             elif mode.impl == 'mpich':
