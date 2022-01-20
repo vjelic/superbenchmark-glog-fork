@@ -1,4 +1,4 @@
-FROM amdprivate.azurecr.io/superbench:rocm9234_ubuntu18.04_py3.8_pytorch_1.9.0_amd
+FROM amdprivate.azurecr.io/superbench:rocm9369_ubuntu18.04_py3.8_pytorch_1.9.0_amd
 
 LABEL maintainer="SuperBench"
 
@@ -49,6 +49,16 @@ RUN mkdir -p /root/.ssh && \
     echo -e "* soft nofile 1048576\n* hard nofile 1048576" >> /etc/security/limits.conf && \
     echo -e "root soft nofile 1048576\nroot hard nofile 1048576" >> /etc/security/limits.conf
 
+# Install ucx
+RUN cd /tmp && wget https://github.com/openucx/ucx/releases/download/v1.12.0/ucx-1.12.0.tar.gz && \
+    tar xzf ucx-1.12.0.tar.gz && \
+    cd ucx-1.12.0 && \
+    mkdir build && cd build/ && \
+    ../contrib/configure-release --prefix=/opt/ucx && \
+    make -j $(nproc) && make install && \
+    rm -rf /tmp/ucx-1.12.0
+
+
 # Install OpenMPI
 ENV OPENMPI_VERSION=4.0.5
 RUN cd /tmp && \
@@ -69,7 +79,31 @@ RUN cd /tmp && \
     PATH=/usr/bin:${PATH} MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64/mlnxofedinstall --user-space-only --without-fw-update --force --all && \
     rm -rf MLNX_OFED_LINUX-${OFED_VERSION}*
 
-ENV PATH="${PATH}" \
+# Install HPC-X
+RUN cd /opt && \
+    wget -q https://azhpcstor.blob.core.windows.net/azhpc-images-store/hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64.tbz && \
+    tar xf hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64.tbz && \
+    ln -s hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64 hpcx && \
+    rm hpcx-v2.8.3-gcc-MLNX_OFED_LINUX-${OFED_VERSION}-ubuntu18.04-x86_64.tbz
+
+# Install Intel MLC
+RUN cd /tmp && \
+    mkdir -p mlc && \
+    cd mlc && \
+    wget --user-agent="Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0" https://www.intel.com/content/dam/develop/external/us/en/documents/mlc_v3.9a.tgz && \
+    tar xvf mlc_v3.9a.tgz && \
+    cp ./Linux/mlc /usr/local/bin/ && \
+    cd /tmp && \
+    rm -rf mlc
+
+# Install hipify
+RUN git clone https://github.com/ROCm-Developer-Tools/HIPIFY.git /opt/hipify && \
+    cd /opt/hipify/ && mkdir build && mkdir /opt/rocm/hipipy  && cd build && \
+    cmake  -DCMAKE_INSTALL_PREFIX=/opt/rocm/hipipy -DCMAKE_BUILD_TYPE=Release  /opt/hipify && \
+    make -j install 
+RUN cd /opt/rocm/hip/bin/ && /opt/rocm/hipipy/hipify-clang --perl 
+
+ENV PATH="${PATH}:/opt/rocm/hip/bin/" \
     LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}" \
     SB_HOME="/opt/superbench" \
     SB_MICRO_PATH="/opt/superbench"
@@ -84,11 +118,11 @@ RUN python3 -m pip install .[torch] && \
     make cppbuild
 
 # Install rocblas-clients
-RUN sudo apt install libboost-program-options-dev && \
-    sudo apt install libomp-dev && \
-    sudo apt install gfortran-7 && \
-    sudo apt install rocblas-clients && \
-    cp -v /opt/rocm/rocblas/bin/rocblas-bench ${SB_MICRO_PATH}/bin/
+RUN sudo apt install libboost-program-options-dev -y && \
+    sudo apt install libomp-dev -y && \
+    sudo apt install gfortran-7 -y
+#    sudo apt install rocblas-clients -y && \
+#    cp -v /opt/rocm/rocblas/bin/rocblas-bench ${SB_MICRO_PATH}/bin/
 
 # Install rccl-rdma-sharp-plugins
 RUN cd /opt/rocm && \
