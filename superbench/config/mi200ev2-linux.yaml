@@ -100,11 +100,11 @@ superbench:
     bert_models:
       <<: *default_pytorch_mode
       models:
-        batch_size: 64
         - bert-base
         - bert-large
       parameters:
         <<: *common_model_config
+        batch_size: 64
         seq_len: 224
     lstm_models:
       <<: *default_pytorch_mode
