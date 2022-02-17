@@ -27,7 +27,7 @@ superbench:
       num_warmup: 64
       num_steps: 100
       sample_count: 8192
-      batch_size: 32
+      batch_size: 256
       precision:
         - float32
         - float16
@@ -100,6 +100,7 @@ superbench:
     bert_models:
       <<: *default_pytorch_mode
       models:
+        batch_size: 64
         - bert-base
         - bert-large
       parameters:
