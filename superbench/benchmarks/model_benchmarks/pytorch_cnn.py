@@ -99,10 +99,10 @@ class PytorchCNN(PytorchBase):
         curr_step = 0
         while True:
             for idx, sample in enumerate(self._dataloader):
+                start = time.time()
                 sample = sample.to(dtype=getattr(torch, precision.value))
                 if self._gpu_available:
                     sample = sample.cuda()
-                start = time.time()
                 self._optimizer.zero_grad()
                 output = self._model(sample)
                 loss = self._loss_fn(output, self._target)
